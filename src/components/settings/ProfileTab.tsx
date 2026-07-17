@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Globe, Clock, ChevronDown, Check, Sun, Moon, Monitor } from 'lucide-react';
 
 export const ProfileTab: React.FC = () => {
   const { user, updateUser } = useApp();
 
-  const [name, setName] = useState(user?.name || 'Mahmudul Hasan');
-  const [email, setEmail] = useState(user?.email || 'mahmudul@example.com');
-  const [phone, setPhone] = useState('+880 17 1234 5678');
+  const [name, setName] = useState(user?.name || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phoneNumber || '');
   const [language, setLanguage] = useState('English (US)');
   const [timezone, setTimezone] = useState('(GMT+06:00) Dhaka, Bangladesh');
 
@@ -21,9 +21,18 @@ export const ProfileTab: React.FC = () => {
   const [collapsedSidebar, setCollapsedSidebar] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Sync state when user profile is fetched asynchronously
+  useEffect(() => {
+    if (user) {
+      setName(user.name || '');
+      setEmail(user.email || '');
+      setPhone(user.phoneNumber || '');
+    }
+  }, [user]);
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ name, email });
+    updateUser({ name, email, phoneNumber: phone });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

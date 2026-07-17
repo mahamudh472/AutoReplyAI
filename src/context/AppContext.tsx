@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { api, apiRequest, getAccessToken, getRefreshToken, setTokens, clearTokens } from '../utils/api';
 
 // Types
 export interface Message {
@@ -67,6 +68,7 @@ export interface User {
   name: string;
   email: string;
   avatar: string;
+  phoneNumber?: string | null;
   onboardingCompleted: boolean;
   notifications: {
     newMessages: boolean;
@@ -92,8 +94,8 @@ interface AppContextType {
   activeConversationId: string | null;
   
   // Actions
-  login: (email: string, name?: string) => Promise<boolean>;
-  signup: (email: string, name: string) => Promise<boolean>;
+  login: (email: string, password?: string) => Promise<boolean>;
+  signup: (email: string, name: string, password?: string) => Promise<boolean>;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
   
@@ -258,6 +260,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : null;
   });
 
+  // Load latest user profile on mount
+  useEffect(() => {
+    const token = getAccessToken();
+    if (token) {
+      api.getProfile()
+        .then((profile) => {
+          const email = profile.email;
+          const hasOnboarded = localStorage.getItem(`replyai_onboarded_${email}`) === 'true';
+          
+          setUser({
+            id: profile.id,
+            name: profile.full_name || 'No Name',
+            email: profile.email,
+            avatar: profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+            phoneNumber: profile.phone_number,
+            onboardingCompleted: hasOnboarded,
+            notifications: { newMessages: true, aiReplies: true, weeklyDigest: false }
+          });
+        })
+        .catch((err) => {
+          console.error('Failed to load user profile from backend on mount', err);
+        });
+    }
+  }, []);
+
   // Organizations List State
   const [organizations, setOrganizations] = useState<Organization[]>(() => {
     const saved = localStorage.getItem('replyai_orgs');
@@ -365,39 +392,79 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [conversations, activeOrgId]);
 
   // Actions: User Auth
-  const login = async (email: string, name?: string): Promise<boolean> => {
-    const defaultUser: User = {
-      id: 'u1',
-      name: name || 'Mahmud',
-      email: email,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      onboardingCompleted: true,
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    if (!password) {
+      throw new Error('Password is required');
+    }
+    const tokenData = await api.login(email, password);
+    setTokens(tokenData.access, tokenData.refresh);
+    
+    // Fetch profile
+    const profile = await api.getProfile();
+    const hasOnboarded = localStorage.getItem(`replyai_onboarded_${email}`) === 'true';
+    
+    setUser({
+      id: profile.id,
+      name: profile.full_name || 'No Name',
+      email: profile.email,
+      avatar: profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+      phoneNumber: profile.phone_number,
+      onboardingCompleted: hasOnboarded,
       notifications: { newMessages: true, aiReplies: true, weeklyDigest: false }
-    };
-    setUser(defaultUser);
+    });
     return true;
   };
 
-  const signup = async (email: string, name: string): Promise<boolean> => {
-    const newUser: User = {
-      id: 'u_' + Date.now(),
-      name: name,
-      email: email,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      onboardingCompleted: false, // New users must onboard!
-      notifications: { newMessages: true, aiReplies: true, weeklyDigest: true }
-    };
-    setUser(newUser);
+  const signup = async (email: string, name: string, password?: string): Promise<boolean> => {
+    if (!password) {
+      throw new Error('Password is required');
+    }
+    await api.register(email, password, name);
     return true;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const refresh = getRefreshToken();
+    if (refresh) {
+      try {
+        await api.logout(refresh);
+      } catch (err) {
+        console.warn('Backend logout failed', err);
+      }
+    }
+    clearTokens();
     setUser(null);
     localStorage.removeItem('replyai_user');
   };
 
   const updateUser = (updates: Partial<User>) => {
-    setUser(prev => prev ? { ...prev, ...updates } : null);
+    setUser(prev => {
+      if (!prev) return null;
+      const updated = { ...prev, ...updates };
+      
+      // Persist onboarding status to localStorage keyed by email
+      if (updates.onboardingCompleted !== undefined) {
+        localStorage.setItem(`replyai_onboarded_${prev.email}`, String(updates.onboardingCompleted));
+      }
+      
+      // Patch on the backend!
+      if (updates.name !== undefined || updates.avatar !== undefined || updates.phoneNumber !== undefined) {
+        const patchData: any = {};
+        if (updates.name !== undefined) patchData.full_name = updates.name;
+        if (updates.avatar !== undefined) patchData.avatar = updates.avatar;
+        if (updates.phoneNumber !== undefined) patchData.phone_number = updates.phoneNumber;
+        
+        api.updateProfile(patchData)
+          .then((updatedProfile) => {
+            console.log('Profile successfully updated on backend', updatedProfile);
+          })
+          .catch((err) => {
+            console.error('Failed to update profile on backend', err);
+          });
+      }
+      
+      return updated;
+    });
   };
 
   // Actions: Organizations
@@ -509,11 +576,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getFacebookAuthUrl = async (): Promise<string> => {
     try {
-      const response = await fetch('http://localhost:8000/api/integrations/facebook/auth-url/');
-      if (response.ok) {
-        const data = await response.json();
-        return data.url;
-      }
+      const data = await apiRequest('/api/integrations/facebook/auth-url/');
+      return data.url;
     } catch (e) {
       console.warn('Backend API connection failed, returning mock auth URL', e);
     }
@@ -523,11 +587,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const fetchFacebookPages = async (): Promise<{ id: string; name: string }[]> => {
     try {
-      const response = await fetch('http://localhost:8000/api/integrations/facebook/pages/');
-      if (response.ok) {
-        const data = await response.json();
-        return data.pages || data;
-      }
+      const data = await apiRequest('/api/integrations/facebook/pages/');
+      return data.pages || data;
     } catch (e) {
       console.warn('Backend API connection failed, returning mock pages', e);
     }
@@ -541,14 +602,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const linkFacebookPage = async (pageId: string): Promise<void> => {
     try {
-      const response = await fetch('http://localhost:8000/api/integrations/facebook/link/', {
+      await apiRequest('/api/integrations/facebook/link/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ page_id: pageId })
       });
-      if (response.ok) {
-        return;
-      }
     } catch (e) {
       console.warn('Backend API connection failed, simulating success locally', e);
     }

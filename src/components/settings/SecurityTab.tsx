@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, Shield, CheckCircle, AlertCircle, Smartphone, Laptop, Monitor } from 'lucide-react';
 import { TwoFactorModal } from './TwoFactorModal';
+import { api } from '../../utils/api';
 
 export const SecurityTab: React.FC = () => {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -19,7 +20,7 @@ export const SecurityTab: React.FC = () => {
     { id: 'sess-3', device: 'Firefox on Windows 11', location: 'San Francisco, USA', time: '3 days ago', isCurrent: false, ip: '74.125.19.147' },
   ]);
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentPassword) {
       setPasswordStatus({ type: 'error', message: 'Current password is required.' });
@@ -34,11 +35,19 @@ export const SecurityTab: React.FC = () => {
       return;
     }
     
-    setPasswordStatus({ type: 'success', message: 'Your password has been successfully updated!' });
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setPasswordStatus(null), 4000);
+    try {
+      const res = await api.changePassword(currentPassword, newPassword, confirmPassword);
+      setPasswordStatus({ type: 'success', message: res.message || 'Your password has been successfully updated!' });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setTimeout(() => setPasswordStatus(null), 4000);
+    } catch (err: any) {
+      setPasswordStatus({
+        type: 'error',
+        message: err.error || err.detail || (Array.isArray(err.detail) ? err.detail[0] : null) || 'Failed to update password.'
+      });
+    }
   };
 
   const handleRevokeSession = (id: string) => {
