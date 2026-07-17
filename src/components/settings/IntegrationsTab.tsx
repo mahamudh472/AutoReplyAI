@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
-import { ShoppingBag, Globe, Link2 } from 'lucide-react';
+import { ShoppingBag, Globe, Link2, AlertTriangle } from 'lucide-react';
 import { FacebookIcon, InstagramIcon, SlackIcon } from '../SocialIcons';
+import { MetaConnectModal } from './MetaConnectModal';
 
 export const IntegrationsTab: React.FC = () => {
-  const { connections, toggleConnection } = useApp();
+  const { connections, disconnectMetaPage } = useApp();
+
+  // Meta connection states
+  const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
+  const [metaModalPlatform, setMetaModalPlatform] = useState<'facebook' | 'instagram'>('facebook');
+  const [showConfirmDisconnect, setShowConfirmDisconnect] = useState<'facebook' | 'instagram' | null>(null);
 
   // Shopify mock state
   const [shopifyConnected, setShopifyConnected] = useState(false);
@@ -22,7 +28,8 @@ export const IntegrationsTab: React.FC = () => {
   const [zapierConnected, setZapierConnected] = useState(false);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
       
       {/* Integration 1: Facebook Pages */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-[210px]">
@@ -56,7 +63,15 @@ export const IntegrationsTab: React.FC = () => {
             }
           </span>
           <button
-            onClick={() => toggleConnection('facebook')}
+            onClick={() => {
+              const isConnected = connections.find(c => c.platform === 'facebook')?.connected;
+              if (isConnected) {
+                setShowConfirmDisconnect('facebook');
+              } else {
+                setMetaModalPlatform('facebook');
+                setIsMetaModalOpen(true);
+              }
+            }}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
               connections.find(c => c.platform === 'facebook')?.connected
                 ? 'text-rose-600 hover:bg-rose-50 border border-transparent'
@@ -100,7 +115,15 @@ export const IntegrationsTab: React.FC = () => {
             }
           </span>
           <button
-            onClick={() => toggleConnection('instagram')}
+            onClick={() => {
+              const isConnected = connections.find(c => c.platform === 'instagram')?.connected;
+              if (isConnected) {
+                setShowConfirmDisconnect('instagram');
+              } else {
+                setMetaModalPlatform('instagram');
+                setIsMetaModalOpen(true);
+              }
+            }}
             className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
               connections.find(c => c.platform === 'instagram')?.connected
                 ? 'text-rose-600 hover:bg-rose-50 border border-transparent'
@@ -296,6 +319,59 @@ export const IntegrationsTab: React.FC = () => {
         </div>
       </div>
 
-    </div>
+      </div>
+
+      {/* Disconnect Confirmation Dialog */}
+      {showConfirmDisconnect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowConfirmDisconnect(null)}></div>
+          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl w-full max-w-md mx-4 space-y-5 animate-slide-in z-10 text-left">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5.5 w-5.5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-850 font-outfit">
+                  Disconnect {showConfirmDisconnect === 'facebook' ? 'Facebook Page' : 'Instagram Profile'}?
+                </h3>
+                <p className="text-[10px] text-slate-455">
+                  This action will immediately stop AI automated responses on this channel.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-655 leading-relaxed pl-1">
+              Are you sure you want to disconnect? All active conversations, sync parameters, and AI auto-replies for this {showConfirmDisconnect === 'facebook' ? 'Facebook Page' : 'Instagram Profile'} will be paused.
+            </p>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                onClick={() => setShowConfirmDisconnect(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-655 hover:bg-slate-50 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  await disconnectMetaPage(showConfirmDisconnect);
+                  setShowConfirmDisconnect(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors shadow-md shadow-rose-500/10"
+              >
+                Disconnect Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meta Connection Modal */}
+      <MetaConnectModal
+        isOpen={isMetaModalOpen}
+        onClose={() => setIsMetaModalOpen(false)}
+        platform={metaModalPlatform}
+      />
+
+    </>
   );
 };

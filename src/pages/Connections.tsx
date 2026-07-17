@@ -6,13 +6,24 @@ import {
   HelpCircle, 
   Bell, 
   Info,
-  Copy
+  Copy,
+  AlertTriangle,
+  Settings,
+  Trash2
 } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/SocialIcons';
+import { MetaConnectModal } from '../components/settings/MetaConnectModal';
 
 export const Connections: React.FC = () => {
-  const { connections } = useApp();
+  const { connections, disconnectMetaPage } = useApp();
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Connection Modal & Interactive States
+  const [isMetaModalOpen, setIsMetaModalOpen] = useState(false);
+  const [metaModalPlatform, setMetaModalPlatform] = useState<'facebook' | 'instagram'>('facebook');
+  const [activeDropdown, setActiveDropdown] = useState<'fb' | 'ig' | null>(null);
+  const [showConfirmDisconnect, setShowConfirmDisconnect] = useState<'fb' | 'ig' | null>(null);
+  const [syncingPlatform, setSyncingPlatform] = useState<'fb' | 'ig' | null>(null);
 
   const fbConn = connections.find(c => c.platform === 'facebook');
   const igConn = connections.find(c => c.platform === 'instagram');
@@ -21,6 +32,14 @@ export const Connections: React.FC = () => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleSync = (platform: 'fb' | 'ig') => {
+    setSyncingPlatform(platform);
+    setActiveDropdown(null);
+    setTimeout(() => {
+      setSyncingPlatform(null);
+    }, 1500);
   };
 
   return (
@@ -60,7 +79,10 @@ export const Connections: React.FC = () => {
             <p className="text-xs text-slate-400 mt-0.5">Manage your connected Meta accounts</p>
           </div>
           
-          <button className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/10">
+          <button 
+            onClick={() => { setMetaModalPlatform('facebook'); setIsMetaModalOpen(true); }}
+            className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/10 cursor-pointer"
+          >
             <span className="text-sm font-light">+</span> Connect Meta Account
           </button>
         </div>
@@ -77,12 +99,16 @@ export const Connections: React.FC = () => {
                 </div>
                 <div className="truncate space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-800 leading-tight">ABC Store</h4>
+                    <h4 className="text-sm font-bold text-slate-800 leading-tight">
+                      {fbConn.pageName || 'Facebook Page'}
+                    </h4>
                     <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wide">
                       Facebook Page
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">@abcstore</p>
+                  <p className="text-xs text-slate-400">
+                    @{fbConn.pageName?.toLowerCase().replace(/\s+/g, '') || 'fbpage'}
+                  </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                     <span>Page ID: {fbConn.pageId}</span>
                     <button 
@@ -107,7 +133,7 @@ export const Connections: React.FC = () => {
                 
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Webhook</p>
-                  <p className="text-emerald-600 font-bold flex items-center gap-1">
+                  <p className="text-emerald-650 font-bold flex items-center gap-1">
                     Active
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                   </p>
@@ -116,8 +142,20 @@ export const Connections: React.FC = () => {
                 <div className="space-y-1 col-span-2 sm:col-span-1">
                   <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Sync Status</p>
                   <p className="font-semibold text-slate-700 flex items-center gap-1">
-                    Synced 2m ago
-                    <RefreshCw className="h-3 w-3 text-slate-400 hover:text-slate-650 cursor-pointer" />
+                    {syncingPlatform === 'fb' ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 text-blue-600 animate-spin" />
+                        <span className="text-blue-600 font-bold">Syncing...</span>
+                      </>
+                    ) : (
+                      <>
+                        {fbConn.lastSync || 'Synced 5m ago'}
+                        <RefreshCw 
+                          onClick={() => handleSync('fb')}
+                          className="h-3 w-3 text-slate-400 hover:text-slate-650 cursor-pointer" 
+                        />
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -135,10 +173,43 @@ export const Connections: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex-shrink-0 flex items-center gap-2 self-end lg:self-center">
-                <button className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl">
+              <div className="relative flex-shrink-0 flex items-center gap-2 self-end lg:self-center">
+                <button 
+                  onClick={() => setActiveDropdown(prev => prev === 'fb' ? null : 'fb')}
+                  className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                >
                   <MoreVertical className="h-4 w-4" />
                 </button>
+
+                {activeDropdown === 'fb' && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)}></div>
+                    <div className="absolute right-0 top-11 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 w-44 z-20 animate-fade-in text-xs font-semibold">
+                      <button 
+                        onClick={() => handleSync('fb')}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-xl text-left cursor-pointer"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 text-slate-450" />
+                        Sync Now
+                      </button>
+                      <button 
+                        onClick={() => { setMetaModalPlatform('facebook'); setIsMetaModalOpen(true); setActiveDropdown(null); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-xl text-left cursor-pointer"
+                      >
+                        <Settings className="h-3.5 w-3.5 text-slate-450" />
+                        Manage Settings
+                      </button>
+                      <hr className="my-1.5 border-slate-100" />
+                      <button 
+                        onClick={() => { setShowConfirmDisconnect('fb'); setActiveDropdown(null); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-left cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                        Disconnect Page
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -152,12 +223,16 @@ export const Connections: React.FC = () => {
                 </div>
                 <div className="truncate space-y-1">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-800 leading-tight">abc_store</h4>
+                    <h4 className="text-sm font-bold text-slate-800 leading-tight">
+                      {igConn.pageName || 'Instagram Profile'}
+                    </h4>
                     <span className="px-2 py-0.5 rounded bg-pink-50 text-pink-600 text-[10px] font-bold uppercase tracking-wide">
                       Instagram
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400">@abc_store</p>
+                  <p className="text-xs text-slate-400">
+                    @{igConn.pageName?.toLowerCase().replace(/\s+/g, '') || 'igprofile'}
+                  </p>
                   <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
                     <span>Instagram Business ID: {igConn.pageId}</span>
                     <button 
@@ -182,7 +257,7 @@ export const Connections: React.FC = () => {
                 
                 <div className="space-y-1">
                   <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Webhook</p>
-                  <p className="text-emerald-600 font-bold flex items-center gap-1">
+                  <p className="text-emerald-650 font-bold flex items-center gap-1">
                     Active
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
                   </p>
@@ -191,8 +266,20 @@ export const Connections: React.FC = () => {
                 <div className="space-y-1 col-span-2 sm:col-span-1">
                   <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Sync Status</p>
                   <p className="font-semibold text-slate-700 flex items-center gap-1">
-                    Synced 1m ago
-                    <RefreshCw className="h-3 w-3 text-slate-400 hover:text-slate-650 cursor-pointer" />
+                    {syncingPlatform === 'ig' ? (
+                      <>
+                        <RefreshCw className="h-3 w-3 text-pink-600 animate-spin" />
+                        <span className="text-pink-600 font-bold">Syncing...</span>
+                      </>
+                    ) : (
+                      <>
+                        {igConn.lastSync || 'Synced 1m ago'}
+                        <RefreshCw 
+                          onClick={() => handleSync('ig')}
+                          className="h-3 w-3 text-slate-400 hover:text-slate-650 cursor-pointer" 
+                        />
+                      </>
+                    )}
                   </p>
                 </div>
 
@@ -210,10 +297,43 @@ export const Connections: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex-shrink-0 flex items-center gap-2 self-end lg:self-center">
-                <button className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl">
+              <div className="relative flex-shrink-0 flex items-center gap-2 self-end lg:self-center">
+                <button 
+                  onClick={() => setActiveDropdown(prev => prev === 'ig' ? null : 'ig')}
+                  className="p-2 border border-slate-200 hover:bg-slate-50 text-slate-400 hover:text-slate-600 rounded-xl cursor-pointer"
+                >
                   <MoreVertical className="h-4 w-4" />
                 </button>
+
+                {activeDropdown === 'ig' && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)}></div>
+                    <div className="absolute right-0 top-11 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 w-44 z-20 animate-fade-in text-xs font-semibold">
+                      <button 
+                        onClick={() => handleSync('ig')}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-xl text-left cursor-pointer"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 text-slate-450" />
+                        Sync Now
+                      </button>
+                      <button 
+                        onClick={() => { setMetaModalPlatform('instagram'); setIsMetaModalOpen(true); setActiveDropdown(null); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50 rounded-xl text-left cursor-pointer"
+                      >
+                        <Settings className="h-3.5 w-3.5 text-slate-450" />
+                        Manage Settings
+                      </button>
+                      <hr className="my-1.5 border-slate-100" />
+                      <button 
+                        onClick={() => { setShowConfirmDisconnect('ig'); setActiveDropdown(null); }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-left cursor-pointer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-rose-500" />
+                        Disconnect Profile
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -238,8 +358,12 @@ export const Connections: React.FC = () => {
                 <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center font-bold">
                   ∞
                 </div>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200">
-                  Connected
+                <span className={`text-[9px] font-bold px-2 py-0.5 rounded border ${
+                  (fbConn?.connected || igConn?.connected)
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                    : 'bg-slate-100 text-slate-400 border-slate-200'
+                }`}>
+                  {(fbConn?.connected || igConn?.connected) ? 'Connected' : 'Not Connected'}
                 </span>
               </div>
               
@@ -249,8 +373,11 @@ export const Connections: React.FC = () => {
               </p>
             </div>
             
-            <button className="w-full mt-6 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl transition-colors">
-              Manage
+            <button 
+              onClick={() => { setMetaModalPlatform('facebook'); setIsMetaModalOpen(true); }}
+              className="w-full mt-6 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+            >
+              {(fbConn?.connected || igConn?.connected) ? 'Manage' : 'Connect'}
             </button>
           </div>
 
@@ -379,6 +506,58 @@ export const Connections: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Disconnect Confirmation Dialog */}
+      {showConfirmDisconnect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={() => setShowConfirmDisconnect(null)}></div>
+          <div className="relative bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl w-full max-w-md mx-4 space-y-5 animate-slide-in z-10">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center shadow-sm">
+                <AlertTriangle className="h-5.5 w-5.5" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-850 font-outfit">
+                  Disconnect {showConfirmDisconnect === 'fb' ? 'Facebook Page' : 'Instagram Profile'}?
+                </h3>
+                <p className="text-[10px] text-slate-400">
+                  This action will immediately stop AI automated responses on this channel.
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed pl-1">
+              Are you sure you want to disconnect? All active conversations, sync parameters, and AI auto-replies for this {showConfirmDisconnect === 'fb' ? 'Facebook Page' : 'Instagram Profile'} will be paused.
+            </p>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                onClick={() => setShowConfirmDisconnect(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-655 hover:bg-slate-50 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const target = showConfirmDisconnect === 'fb' ? 'facebook' : 'instagram';
+                  await disconnectMetaPage(target);
+                  setShowConfirmDisconnect(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs cursor-pointer transition-colors shadow-md shadow-rose-500/10"
+              >
+                Disconnect Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Meta Connection Modal */}
+      <MetaConnectModal
+        isOpen={isMetaModalOpen}
+        onClose={() => setIsMetaModalOpen(false)}
+        platform={metaModalPlatform}
+      />
 
     </div>
   );

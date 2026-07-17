@@ -17,6 +17,7 @@ import { Organization } from './pages/Organization';
 import { Team } from './pages/Team';
 import { Billing } from './pages/Billing';
 import { Profile } from './pages/Profile';
+import { MockFacebookOAuth } from './pages/MockFacebookOAuth';
 
 import './App.css';
 
@@ -29,6 +30,7 @@ const AppContent: React.FC = () => {
       <Router>
         <Routes>
           <Route path="/auth" element={<Auth />} />
+          <Route path="/mock-facebook-oauth" element={<MockFacebookOAuth />} />
           <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
       </Router>
@@ -41,6 +43,7 @@ const AppContent: React.FC = () => {
       <Router>
         <Routes>
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/mock-facebook-oauth" element={<MockFacebookOAuth />} />
           <Route path="*" element={<Navigate to="/onboarding" replace />} />
         </Routes>
       </Router>
@@ -50,20 +53,25 @@ const AppContent: React.FC = () => {
   // 3. Authenticated and Onboarded: Show Main layout & Navigation
   return (
     <Router>
-      <MainLayout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/conversations" element={<Conversations />} />
-          <Route path="/connections" element={<Connections />} />
-          <Route path="/ai" element={<AISettings />} />
-          <Route path="/knowledge" element={<KnowledgeBase />} />
-          <Route path="/team" element={<Team />} />
-          <Route path="/organization" element={<Organization />} />
-          <Route path="/billing" element={<Billing />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </MainLayout>
+      <Routes>
+        <Route path="/mock-facebook-oauth" element={<MockFacebookOAuth />} />
+        <Route path="/*" element={
+          <MainLayout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/conversations" element={<Conversations />} />
+              <Route path="/connections" element={<Connections />} />
+              <Route path="/ai" element={<AISettings />} />
+              <Route path="/knowledge" element={<KnowledgeBase />} />
+              <Route path="/team" element={<Team />} />
+              <Route path="/organization" element={<Organization />} />
+              <Route path="/billing" element={<Billing />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </MainLayout>
+        } />
+      </Routes>
     </Router>
   );
 };

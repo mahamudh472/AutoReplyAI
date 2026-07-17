@@ -106,6 +106,11 @@ interface AppContextType {
   
   // Connections Actions
   toggleConnection: (platform: 'facebook' | 'instagram', pageName?: string) => void;
+  connectMetaPage: (platform: 'facebook' | 'instagram', pageId: string, pageName: string) => Promise<void>;
+  disconnectMetaPage: (platform: 'facebook' | 'instagram') => Promise<void>;
+  getFacebookAuthUrl: () => Promise<string>;
+  fetchFacebookPages: () => Promise<{ id: string; name: string }[]>;
+  linkFacebookPage: (pageId: string) => Promise<void>;
   
   // Chat Actions
   setActiveConversationId: (id: string | null) => void;
@@ -470,6 +475,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const connectMetaPage = async (platform: 'facebook' | 'instagram', pageId: string, pageName: string) => {
+    setConnections(prev => prev.map(c => {
+      if (c.platform === platform) {
+        return {
+          ...c,
+          connected: true,
+          pageName,
+          pageId,
+          lastSync: 'Just now',
+          webhookStatus: 'active'
+        };
+      }
+      return c;
+    }));
+  };
+
+  const disconnectMetaPage = async (platform: 'facebook' | 'instagram') => {
+    setConnections(prev => prev.map(c => {
+      if (c.platform === platform) {
+        return {
+          ...c,
+          connected: false,
+          pageName: undefined,
+          pageId: undefined,
+          lastSync: undefined,
+          webhookStatus: undefined
+        };
+      }
+      return c;
+    }));
+  };
+
+  const getFacebookAuthUrl = async (): Promise<string> => {
+    try {
+      const response = await fetch('http://localhost:8000/api/integrations/facebook/auth-url/');
+      if (response.ok) {
+        const data = await response.json();
+        return data.url;
+      }
+    } catch (e) {
+      console.warn('Backend API connection failed, returning mock auth URL', e);
+    }
+    // Fallback Mock OAuth URL
+    return window.location.origin + window.location.pathname + '#/mock-facebook-oauth';
+  };
+
+  const fetchFacebookPages = async (): Promise<{ id: string; name: string }[]> => {
+    try {
+      const response = await fetch('http://localhost:8000/api/integrations/facebook/pages/');
+      if (response.ok) {
+        const data = await response.json();
+        return data.pages || data;
+      }
+    } catch (e) {
+      console.warn('Backend API connection failed, returning mock pages', e);
+    }
+    // Fallback Mock Pages
+    return [
+      { id: 'fb-page-101', name: 'ABC Store Online' },
+      { id: 'fb-page-202', name: 'Mahmud\'s Tech Corner' },
+      { id: 'fb-page-303', name: 'Global Fashion Co' }
+    ];
+  };
+
+  const linkFacebookPage = async (pageId: string): Promise<void> => {
+    try {
+      const response = await fetch('http://localhost:8000/api/integrations/facebook/link/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page_id: pageId })
+      });
+      if (response.ok) {
+        return;
+      }
+    } catch (e) {
+      console.warn('Backend API connection failed, simulating success locally', e);
+    }
+  };
+
   // Helper: Get AI Response based on Prompt & Knowledge base
   const generateMockAIResponse = (customerQuery: string, currentOrg: Organization): string => {
     const query = customerQuery.toLowerCase();
@@ -776,6 +860,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       removeTeamMember,
       
       toggleConnection,
+      connectMetaPage,
+      disconnectMetaPage,
+      getFacebookAuthUrl,
+      fetchFacebookPages,
+      linkFacebookPage,
       
       setActiveConversationId,
       sendManualReply,
