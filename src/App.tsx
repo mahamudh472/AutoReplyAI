@@ -2,6 +2,46 @@ import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 
+// Check if this window received a redirect query parameter from Meta callback
+const params = new URLSearchParams(window.location.search);
+const isSuccess = params.get('success') === 'true' || window.location.hash.includes('success=true');
+const errorMsg = params.get('error') || (window.location.hash.match(/error=([^&]+)/) || [])[1];
+
+if (isSuccess || errorMsg) {
+  // 1. Try BroadcastChannel
+  try {
+    const channel = new BroadcastChannel('meta_auth_channel');
+    if (isSuccess) {
+      channel.postMessage({ type: 'FB_AUTH_SUCCESS' });
+    } else {
+      channel.postMessage({ type: 'FB_AUTH_CANCEL', error: errorMsg ? decodeURIComponent(errorMsg) : '' });
+    }
+    channel.close();
+  } catch (e) {
+    console.warn('BroadcastChannel failed:', e);
+  }
+
+  // 2. Try window.opener fallback
+  if (window.opener) {
+    try {
+      if (isSuccess) {
+        window.opener.postMessage({ type: 'FB_AUTH_SUCCESS' }, '*');
+      } else {
+        window.opener.postMessage({ type: 'FB_AUTH_CANCEL', error: errorMsg ? decodeURIComponent(errorMsg) : '' }, '*');
+      }
+    } catch (e) {
+      console.error('window.opener.postMessage failed:', e);
+    }
+  }
+
+  // 3. Close the popup
+  try {
+    window.close();
+  } catch (e) {
+    console.error('window.close failed:', e);
+  }
+}
+
 // Layout
 import { MainLayout } from './components/MainLayout';
 

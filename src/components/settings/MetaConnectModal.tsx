@@ -63,6 +63,30 @@ export const MetaConnectModal: React.FC<MetaConnectModalProps> = ({
     }
   }, [isOpen, loadPagesFromBackend]);
 
+  // Listen for BroadcastChannel updates for OAuth success/cancel
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    try {
+      const channel = new BroadcastChannel('meta_auth_channel');
+      channel.onmessage = (event) => {
+        if (event.data.type === 'FB_AUTH_SUCCESS') {
+          loadPagesFromBackend();
+        } else if (event.data.type === 'FB_AUTH_CANCEL') {
+          setStep('init');
+          if (event.data.error) {
+            setErrorMsg(event.data.error);
+          }
+        }
+      };
+      return () => {
+        channel.close();
+      };
+    } catch (e) {
+      console.warn('BroadcastChannel failed to initialize in MetaConnectModal:', e);
+    }
+  }, [isOpen, loadPagesFromBackend]);
+
   const startOAuthFlow = async () => {
     setErrorMsg(null);
     setStep('auth');

@@ -260,30 +260,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Load latest user profile on mount
-  useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
-      api.getProfile()
-        .then((profile) => {
-          const email = profile.email;
-          const hasOnboarded = localStorage.getItem(`replyai_onboarded_${email}`) === 'true';
-          
-          setUser({
-            id: profile.id,
-            name: profile.full_name || 'No Name',
-            email: profile.email,
-            avatar: profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-            phoneNumber: profile.phone_number,
-            onboardingCompleted: hasOnboarded,
-            notifications: { newMessages: true, aiReplies: true, weeklyDigest: false }
-          });
-        })
-        .catch((err) => {
-          console.error('Failed to load user profile from backend on mount', err);
-        });
-    }
-  }, []);
+
 
   // Organizations List State
   const [organizations, setOrganizations] = useState<Organization[]>(() => {
@@ -467,6 +444,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // Load latest user profile on mount and force log out on stale/mock sessions
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token && user) {
+      logout();
+      return;
+    }
+    
+    if (token) {
+      api.getProfile()
+        .then((profile) => {
+          const email = profile.email;
+          const hasOnboarded = localStorage.getItem(`replyai_onboarded_${email}`) === 'true';
+          
+          setUser({
+            id: profile.id,
+            name: profile.full_name || 'No Name',
+            email: profile.email,
+            avatar: profile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+            phoneNumber: profile.phone_number,
+            onboardingCompleted: hasOnboarded,
+            notifications: { newMessages: true, aiReplies: true, weeklyDigest: false }
+          });
+        })
+        .catch((err) => {
+          console.error('Failed to load user profile from backend on mount', err);
+          logout();
+        });
+    }
+  }, []);
+
   // Actions: Organizations
   const createOrg = (name: string, logoUrl?: string): string => {
     const newId = 'org-' + Date.now();
@@ -576,8 +584,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const getFacebookAuthUrl = async (): Promise<string> => {
     try {
-      const data = await apiRequest('/api/integrations/facebook/auth-url/');
-      return data.url;
+      const data = await apiRequest('/api/v1/integrations/meta/connect/');
+      return data.authorization_url;
     } catch (e) {
       console.warn('Backend API connection failed, returning mock auth URL', e);
     }
@@ -587,8 +595,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const fetchFacebookPages = async (): Promise<{ id: string; name: string }[]> => {
     try {
-      const data = await apiRequest('/api/integrations/facebook/pages/');
-      return data.pages || data;
+      const data = await apiRequest('/api/v1/integrations/meta/pages/');
+      return data;
     } catch (e) {
       console.warn('Backend API connection failed, returning mock pages', e);
     }
@@ -602,7 +610,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const linkFacebookPage = async (pageId: string): Promise<void> => {
     try {
-      await apiRequest('/api/integrations/facebook/link/', {
+      await apiRequest('/api/v1/integrations/meta/select-page/', {
         method: 'POST',
         body: JSON.stringify({ page_id: pageId })
       });
