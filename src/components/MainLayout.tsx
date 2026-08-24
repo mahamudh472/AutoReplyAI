@@ -23,6 +23,7 @@ interface SidebarItem {
   path: string;
   icon: React.ComponentType<any>;
   badge?: number;
+  tag?: string;
 }
 
 export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -30,18 +31,14 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
   const { 
     user, 
     logout, 
-    conversations,
   } = useApp();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  
-  // Calculate unread count
-  const unreadCount = conversations.filter(c => c.unread && c.status === 'open').length;
 
   const navigation: SidebarItem[] = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-    { name: 'Conversations', path: '/conversations', icon: MessageSquare, badge: unreadCount || 12 },
+    { name: 'Conversations', path: '/conversations', icon: MessageSquare, tag: 'Soon' },
     { name: 'Connections', path: '/connections', icon: Share2 },
     { name: 'AI Settings', path: '/ai', icon: Sparkles },
     { name: 'Knowledge Base', path: '/knowledge', icon: Database },
@@ -91,11 +88,15 @@ export const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }
                 <Icon className={`h-4.5 w-4.5 ${isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}`} />
                 <span>{item.name}</span>
               </div>
-              {item.badge !== undefined && item.badge > 0 && (
+              {item.tag ? (
+                <span className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 border border-slate-200">
+                  {item.tag}
+                </span>
+              ) : item.badge !== undefined && item.badge > 0 ? (
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isActive ? 'bg-blue-600 text-white' : 'bg-blue-600 text-white'}`}>
                   {item.badge}
                 </span>
-              )}
+              ) : null}
             </Link>
           );
         })}

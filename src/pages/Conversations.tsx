@@ -17,6 +17,7 @@ import {
   Plus
 } from 'lucide-react';
 import { FacebookIcon, InstagramIcon } from '../components/SocialIcons';
+import { ComingSoonOverlay } from '../components/ComingSoonOverlay';
 
 export const Conversations: React.FC = () => {
   const { 
@@ -108,10 +109,18 @@ export const Conversations: React.FC = () => {
   };
 
   return (
-    <div className="space-y-5 animate-fade-in text-slate-700 h-[calc(100vh-6.5rem)] flex flex-col">
-      
-      {/* 1. Header and Filters Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
+    <div className="relative h-[calc(100vh-6.5rem)]">
+      {/* Coming Soon Frosted Overlay */}
+      <ComingSoonOverlay
+        title="Coming Soon"
+        badge="Feature In Progress"
+        description="The live conversation inbox is currently under active development. AutoReply AI is actively replying to your customer inquiries automatically in the background."
+      />
+
+      {/* Blurred background view (spoiler preview) */}
+      <div className="space-y-5 animate-fade-in text-slate-700 h-full flex flex-col filter blur-[1.5px] pointer-events-none select-none opacity-85">
+        {/* 1. Header and Filters Row */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-805 font-outfit">Conversations</h1>
         </div>
@@ -591,7 +600,7 @@ export const Conversations: React.FC = () => {
           </div>
         )}
       </div>
-
     </div>
-  );
+  </div>
+);
 };

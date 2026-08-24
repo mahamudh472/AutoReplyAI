@@ -166,8 +166,9 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/30">
               <h2 className="text-sm font-bold text-slate-800 font-outfit">Recent Conversations</h2>
-              <Link to="/conversations" className="text-xs text-blue-600 hover:text-blue-700 font-semibold">
-                View all
+              <Link to="/conversations" className="text-xs text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-1.5">
+                <span>View all</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-bold border border-slate-200">Soon</span>
               </Link>
             </div>
             
