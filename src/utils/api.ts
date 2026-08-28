@@ -48,6 +48,61 @@ export type UpdateAISettingsPayload = Partial<
   Omit<AISettingsResponse, 'id' | 'organization_id' | 'organization_name' | 'created_at' | 'updated_at'>
 >;
 
+export interface KnowledgeDocument {
+  id: string;
+  organization_id: string;
+  organization_name: string;
+  title: string;
+  description: string | null;
+  file: string | null;
+  file_url: string | null;
+  file_name: string | null;
+  file_type: string | null;
+  file_size: number | null;
+  source_type: 'file' | 'text' | 'faq' | 'url' | string;
+  raw_content: string | null;
+  status: 'pending' | 'processing' | 'indexed' | 'failed' | string;
+  error_message: string | null;
+  character_count: number;
+  word_count: number;
+  chunk_count: number;
+  tags: string[];
+  metadata: Record<string, any>;
+  is_active: boolean;
+  created_by_email: string | null;
+  created_at: string;
+  updated_at: string;
+  indexed_at: string | null;
+}
+
+export interface KnowledgeBaseFilterParams {
+  status?: 'pending' | 'processing' | 'indexed' | 'failed' | string;
+  source_type?: 'file' | 'text' | 'faq' | 'url' | string;
+  is_active?: boolean | string;
+  tag?: string;
+  search?: string;
+}
+
+export interface CreateKnowledgeDocumentPayload {
+  file?: File | null;
+  title?: string;
+  description?: string;
+  raw_content?: string;
+  source_type?: 'file' | 'text' | 'faq' | 'url' | string;
+  tags?: string[] | string;
+  metadata?: Record<string, any> | string;
+  is_active?: boolean;
+}
+
+export interface UpdateKnowledgeDocumentPayload {
+  title?: string;
+  description?: string;
+  raw_content?: string;
+  tags?: string[];
+  metadata?: Record<string, any>;
+  is_active?: boolean;
+}
+
 // Token storage helpers
 export const getAccessToken = () => localStorage.getItem('replyai_access_token');
 export const getRefreshToken = () => localStorage.getItem('replyai_refresh_token');
@@ -242,6 +297,72 @@ export const api = {
     return apiRequest('/api/v1/ai/settings/', {
       method: 'PATCH',
       body: JSON.stringify(updates)
+    });
+  },
+
+  getKnowledgeBase: (params?: KnowledgeBaseFilterParams): Promise<KnowledgeDocument[]> => {
+    const query = new URLSearchParams();
+    if (params?.status && params.status !== 'all') query.append('status', params.status);
+    if (params?.source_type && params.source_type !== 'all') query.append('source_type', params.source_type);
+    if (params?.is_active !== undefined && params.is_active !== 'all' && params.is_active !== '') {
+      query.append('is_active', String(params.is_active));
+    }
+    if (params?.tag) query.append('tag', params.tag);
+    if (params?.search) query.append('search', params.search);
+
+    const qs = query.toString();
+    return apiRequest(`/api/v1/ai/knowledge-base/${qs ? `?${qs}` : ''}`);
+  },
+
+  getKnowledgeDocument: (id: string): Promise<KnowledgeDocument> => {
+    return apiRequest(`/api/v1/ai/knowledge-base/${id}/`);
+  },
+
+  uploadKnowledgeDocument: (payload: CreateKnowledgeDocumentPayload | FormData): Promise<KnowledgeDocument> => {
+    if (payload instanceof FormData) {
+      return apiRequest('/api/v1/ai/knowledge-base/upload/', {
+        method: 'POST',
+        body: payload
+      });
+    }
+
+    if (payload.file) {
+      const formData = new FormData();
+      formData.append('file', payload.file);
+      if (payload.title) formData.append('title', payload.title);
+      if (payload.description) formData.append('description', payload.description);
+      if (payload.raw_content) formData.append('raw_content', payload.raw_content);
+      if (payload.source_type) formData.append('source_type', payload.source_type);
+      if (payload.tags) {
+        formData.append('tags', Array.isArray(payload.tags) ? JSON.stringify(payload.tags) : payload.tags);
+      }
+      if (payload.metadata) {
+        formData.append('metadata', typeof payload.metadata === 'object' ? JSON.stringify(payload.metadata) : payload.metadata);
+      }
+      if (payload.is_active !== undefined) formData.append('is_active', String(payload.is_active));
+
+      return apiRequest('/api/v1/ai/knowledge-base/upload/', {
+        method: 'POST',
+        body: formData
+      });
+    }
+
+    return apiRequest('/api/v1/ai/knowledge-base/upload/', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  updateKnowledgeDocument: (id: string, updates: UpdateKnowledgeDocumentPayload): Promise<KnowledgeDocument> => {
+    return apiRequest(`/api/v1/ai/knowledge-base/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  },
+
+  deleteKnowledgeDocument: (id: string): Promise<any> => {
+    return apiRequest(`/api/v1/ai/knowledge-base/${id}/`, {
+      method: 'DELETE'
     });
   }
 };
