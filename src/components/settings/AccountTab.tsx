@@ -42,7 +42,7 @@ export const AccountTab: React.FC = () => {
                 >
                   {organizations.map(org => (
                     <option key={org.id} value={org.id}>
-                      {org.name} ({org.team.length} {org.team.length === 1 ? 'member' : 'members'})
+                      {org.name} ({org.team?.length || 0} {(org.team?.length || 0) === 1 ? 'member' : 'members'})
                     </option>
                   ))}
                 </select>

@@ -49,9 +49,18 @@ export const useApp = () => {
     // Organization
     organizations: org.organizations,
     activeOrgId: org.activeOrgId,
+    activeOrg: org.activeOrg,
+    orgSubscription: org.subscription,
+    isOrgLoading: org.isLoading,
+    isOrgSaving: org.isSaving,
     createOrg: org.createOrg,
     selectOrg: org.selectOrg,
     updateOrgSettings: org.updateOrgSettings,
+    uploadOrgLogo: org.uploadOrgLogo,
+    removeOrgLogo: org.removeOrgLogo,
+    deleteOrg: org.deleteOrg,
+    refreshOrganizations: org.refreshOrganizations,
+    refreshActiveOrg: org.refreshActiveOrg,
     inviteTeamMember: org.inviteTeamMember,
     removeTeamMember: org.removeTeamMember,
 

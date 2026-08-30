@@ -69,7 +69,7 @@ export const Team: React.FC = () => {
   ];
 
   // Merge default members with any dynamically invited members in context
-  const dynamicMembers = org.team.filter(m => !defaultMembers.some(dm => dm.email.toLowerCase() === m.email.toLowerCase()));
+  const dynamicMembers = (org.team || []).filter(m => !defaultMembers.some(dm => dm.email.toLowerCase() === m.email.toLowerCase()));
   const allMembers = [
     ...defaultMembers,
     ...dynamicMembers.map(m => ({
