@@ -25,6 +25,7 @@ export const Organization: React.FC = () => {
     orgSubscription, 
     isOrgLoading, 
     isOrgSaving,
+    orgError,
     selectOrg,
     createOrg,
     updateOrgSettings, 
@@ -66,6 +67,21 @@ export const Organization: React.FC = () => {
   const [newOrgSlug, setNewOrgSlug] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const canManage = org.role === 'owner' || org.role === 'admin';
+  const isOwner = org.role === 'owner';
+
+  const parseError = (err: any, fallback: string): string => {
+    if (typeof err === 'string' && err.trim()) return err;
+    if (err?.error) return err.error;
+    if (err?.detail) return err.detail;
+    if (err?.message) return err.message;
+    const key = err && typeof err === 'object' ? Object.keys(err)[0] : null;
+    if (key) {
+      const value = err[key];
+      return `${key}: ${Array.isArray(value) ? value[0] : value}`;
+    }
+    return fallback;
+  };
 
   // Sync form when active org changes
   useEffect(() => {
@@ -89,7 +105,7 @@ export const Organization: React.FC = () => {
 
   const handleLogoFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !canManage) return;
 
     if (file.size > 2 * 1024 * 1024) {
       setErrorMsg('Image size must be less than 2MB.');
@@ -104,7 +120,7 @@ export const Organization: React.FC = () => {
         setLogo(newLogoUrl);
       }
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to upload logo.');
+      setErrorMsg(parseError(err, 'Failed to upload logo.'));
     } finally {
       setIsUploadingLogo(false);
       if (fileInputRef.current) {
@@ -114,13 +130,14 @@ export const Organization: React.FC = () => {
   };
 
   const handleRemoveLogo = async () => {
+    if (!canManage) return;
     try {
       setIsUploadingLogo(true);
       setErrorMsg(null);
       await removeOrgLogo();
       setLogo('');
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to remove logo.');
+      setErrorMsg(parseError(err, 'Failed to remove logo.'));
     } finally {
       setIsUploadingLogo(false);
     }
@@ -128,6 +145,7 @@ export const Organization: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canManage) return;
     setErrorMsg(null);
     try {
       await updateOrgSettings({
@@ -140,12 +158,7 @@ export const Organization: React.FC = () => {
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err: any) {
-      if (err?.details) {
-        const firstErrorKey = Object.keys(err.details)[0];
-        setErrorMsg(`${firstErrorKey}: ${err.details[firstErrorKey]}`);
-      } else {
-        setErrorMsg(err?.message || 'Failed to update organization settings.');
-      }
+      setErrorMsg(parseError(err, 'Failed to update organization settings.'));
     }
   };
 
@@ -159,7 +172,7 @@ export const Organization: React.FC = () => {
       setDeleteModalOpen(false);
       setDeleteConfirmText('');
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to delete organization.');
+      setErrorMsg(parseError(err, 'Failed to delete organization.'));
     }
   };
 
@@ -177,18 +190,11 @@ export const Organization: React.FC = () => {
       setNewOrgName('');
       setNewOrgSlug('');
     } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to create organization.');
+      setErrorMsg(parseError(err, 'Failed to create organization.'));
     }
   };
 
-  const planFeatures = orgSubscription?.features || {
-    max_messages: 10000,
-    used_messages: 0,
-    max_team_members: 1,
-    used_team_members: 1,
-    max_connected_accounts: 1,
-    used_connected_accounts: 0,
-  };
+  const planFeatures = orgSubscription?.features;
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-750">
@@ -299,15 +305,24 @@ export const Organization: React.FC = () => {
       </div>
 
       {/* Error / Alert Banner */}
-      {errorMsg && (
+      {(errorMsg || orgError) && (
         <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-center justify-between text-xs text-rose-700 font-medium">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-rose-600 flex-shrink-0" />
-            <span>{errorMsg}</span>
+            <span>{errorMsg || orgError}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-rose-500 hover:text-rose-700">
-            <X className="h-4 w-4" />
-          </button>
+          {errorMsg && (
+            <button onClick={() => setErrorMsg(null)} className="text-rose-500 hover:text-rose-700">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {!canManage && org.id && (
+        <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2 text-xs text-amber-700 font-medium">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" />
+          You have {org.role || 'member'} access. Only organization owners and admins can change these settings.
         </div>
       )}
 
@@ -357,8 +372,8 @@ export const Organization: React.FC = () => {
                 <div className="flex gap-2">
                   <button 
                     type="button" 
-                    disabled={isUploadingLogo}
-                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploadingLogo || !canManage}
+                    onClick={() => canManage && fileInputRef.current?.click()}
                     className="px-3 py-1.5 border border-slate-250 hover:bg-slate-50 text-blue-600 hover:text-blue-700 font-semibold text-xs rounded-xl shadow-sm transition-colors cursor-pointer disabled:opacity-50"
                   >
                     {isUploadingLogo ? 'Uploading...' : 'Change Logo'}
@@ -366,7 +381,7 @@ export const Organization: React.FC = () => {
                   {logo && (
                     <button 
                       type="button" 
-                      disabled={isUploadingLogo}
+                      disabled={isUploadingLogo || !canManage}
                       onClick={handleRemoveLogo}
                       className="px-3 py-1.5 text-rose-600 hover:text-rose-700 font-semibold text-xs transition-colors cursor-pointer disabled:opacity-50"
                     >
@@ -467,7 +482,7 @@ export const Organization: React.FC = () => {
           <div className="flex justify-end pt-4 border-t border-slate-100">
             <button
               type="submit"
-              disabled={isOrgSaving}
+              disabled={isOrgSaving || !canManage}
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-md shadow-blue-500/10 text-xs flex items-center gap-2 active:scale-95 disabled:opacity-50 cursor-pointer"
             >
               {isOrgSaving ? (
@@ -513,7 +528,7 @@ export const Organization: React.FC = () => {
                     Messages / month:
                   </span>
                   <span className="font-semibold text-slate-700">
-                    {planFeatures.used_messages.toLocaleString()} / {planFeatures.max_messages.toLocaleString()}
+                    {planFeatures ? `${planFeatures.used_messages.toLocaleString()} / ${planFeatures.max_messages.toLocaleString()}` : '—'}
                   </span>
                 </li>
                 <li className="flex items-center justify-between text-[11px]">
@@ -522,7 +537,7 @@ export const Organization: React.FC = () => {
                     Team members:
                   </span>
                   <span className="font-semibold text-slate-700">
-                    {planFeatures.used_team_members} / {planFeatures.max_team_members}
+                    {planFeatures ? `${planFeatures.used_team_members} / ${planFeatures.max_team_members}` : '—'}
                   </span>
                 </li>
                 <li className="flex items-center justify-between text-[11px]">
@@ -531,7 +546,7 @@ export const Organization: React.FC = () => {
                     Connected accounts:
                   </span>
                   <span className="font-semibold text-slate-700">
-                    {planFeatures.used_connected_accounts} / {planFeatures.max_connected_accounts}
+                    {planFeatures ? `${planFeatures.used_connected_accounts} / ${planFeatures.max_connected_accounts}` : '—'}
                   </span>
                 </li>
               </ul>
@@ -586,8 +601,9 @@ export const Organization: React.FC = () => {
 
             <button
               type="button"
+              disabled={!isOwner}
               onClick={() => setDeleteModalOpen(true)}
-              className="w-full py-2.5 rounded-xl border border-rose-250 hover:bg-rose-50 text-rose-600 text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+              className="w-full py-2.5 rounded-xl border border-rose-250 hover:bg-rose-50 text-rose-600 text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Trash2 className="h-4 w-4" />
               Delete Organization

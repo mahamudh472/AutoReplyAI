@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { User } from '../types/auth';
+import type { ProfileResponse, User } from '../types/auth';
 import { api, getAccessToken, getRefreshToken, setTokens, clearTokens } from '../services';
 
 export interface AuthContextType {
@@ -7,10 +7,22 @@ export interface AuthContextType {
   login: (email: string, password?: string) => Promise<boolean>;
   signup: (email: string, name: string, password?: string) => Promise<boolean>;
   logout: () => void;
-  updateUser: (updates: Partial<User>) => void;
+  updateUser: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+const mapProfileToUser = (profile: ProfileResponse): User => ({
+  id: profile.id,
+  name: profile.full_name || 'No Name',
+  email: profile.email,
+  avatar:
+    profile.avatar ||
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+  phoneNumber: profile.phone_number,
+  onboardingCompleted: profile.onboarding_completed,
+  notifications: { newMessages: true, aiReplies: true, weeklyDigest: false },
+});
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -32,21 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     const tokenData = await api.login(email, password);
     setTokens(tokenData.access, tokenData.refresh);
-
     const profile = await api.getProfile();
-    const hasOnboarded = localStorage.getItem(`replyai_onboarded_${email}`) === 'true';
-
-    setUser({
-      id: profile.id,
-      name: profile.full_name || 'No Name',
-      email: profile.email,
-      avatar:
-        profile.avatar ||
-        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-      phoneNumber: profile.phone_number,
-      onboardingCompleted: hasOnboarded,
-      notifications: { newMessages: true, aiReplies: true, weeklyDigest: false },
-    });
+    setUser(mapProfileToUser(profile));
     return true;
   };
 
@@ -72,32 +71,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('replyai_user');
   };
 
-  const updateUser = (updates: Partial<User>) => {
-    setUser((prev) => {
-      if (!prev) return null;
-      const updated = { ...prev, ...updates };
+  const updateUser = async (updates: Partial<User>): Promise<void> => {
+    const patchData: Partial<ProfileResponse> = {};
+    if (updates.name !== undefined) patchData.full_name = updates.name;
+    if (updates.email !== undefined) patchData.email = updates.email;
+    if (updates.avatar !== undefined) patchData.avatar = updates.avatar;
+    if (updates.phoneNumber !== undefined) patchData.phone_number = updates.phoneNumber;
+    if (updates.onboardingCompleted !== undefined) {
+      patchData.onboarding_completed = updates.onboardingCompleted;
+    }
 
-      if (updates.onboardingCompleted !== undefined) {
-        localStorage.setItem(`replyai_onboarded_${prev.email}`, String(updates.onboardingCompleted));
-      }
+    if (Object.keys(patchData).length > 0) {
+      const updatedProfile = await api.updateProfile(patchData);
+      setUser((previous) => ({
+        ...mapProfileToUser(updatedProfile),
+        notifications: updates.notifications || previous?.notifications || {
+          newMessages: true,
+          aiReplies: true,
+          weeklyDigest: false,
+        },
+      }));
+      return;
+    }
 
-      if (updates.name !== undefined || updates.avatar !== undefined || updates.phoneNumber !== undefined) {
-        const patchData: any = {};
-        if (updates.name !== undefined) patchData.full_name = updates.name;
-        if (updates.avatar !== undefined) patchData.avatar = updates.avatar;
-        if (updates.phoneNumber !== undefined) patchData.phone_number = updates.phoneNumber;
-
-        api.updateProfile(patchData)
-          .then((updatedProfile) => {
-            console.log('Profile successfully updated on backend', updatedProfile);
-          })
-          .catch((err) => {
-            console.error('Failed to update profile on backend', err);
-          });
-      }
-
-      return updated;
-    });
+    setUser((previous) => (previous ? { ...previous, ...updates } : null));
   };
 
   useEffect(() => {
@@ -111,20 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     api.getProfile()
       .then((profile) => {
-        const email = profile.email;
-        const hasOnboarded = localStorage.getItem(`replyai_onboarded_${email}`) === 'true';
-
-        setUser({
-          id: profile.id,
-          name: profile.full_name || 'No Name',
-          email: profile.email,
-          avatar:
-            profile.avatar ||
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-          phoneNumber: profile.phone_number,
-          onboardingCompleted: hasOnboarded,
-          notifications: { newMessages: true, aiReplies: true, weeklyDigest: false },
-        });
+        setUser(mapProfileToUser(profile));
       })
       .catch((err) => {
         console.error('Failed to load user profile from backend on mount', err);

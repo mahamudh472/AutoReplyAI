@@ -1,50 +1,7 @@
-import type { Organization } from '../types/organization';
 import type { Connection } from '../types/connections';
 import type { Conversation } from '../types/chat';
 import type { KBDocument } from '../types/knowledgeBase';
 import type { BillingState } from '../types/billing';
-
-export const DEFAULT_ORGS: Organization[] = [
-  {
-    id: 'org-abc',
-    name: 'ABC Store',
-    logo: 'https://images.unsplash.com/photo-1542838132-92c53300491e?w=100&auto=format&fit=crop&q=80',
-    timezone: 'GMT+06:00',
-    language: 'English',
-    aiEnabled: true,
-    aiMode: 'Automatic',
-    model: 'Gemini',
-    prompt: `You are customer support assistant for ABC Store.
-Always be polite.
-Don't discuss politics.
-Answer questions accurately based on our knowledge base.
-If you don't know the answer, politely tell them to leave their email address and a human agent will get back to them.`,
-    temperature: 0.7,
-    maxTokens: 250,
-    team: [
-      { id: 'u1', name: 'Mahmud', email: 'mahmud@autoreply.ai', role: 'owner', status: 'active' },
-      { id: 'u2', name: 'Sara Miller', email: 'sara@abcstore.com', role: 'member', status: 'active' },
-    ],
-  },
-  {
-    id: 'org-xyz',
-    name: 'XYZ Agency',
-    logo: 'https://images.unsplash.com/photo-1560179707-f14e90ef3623?w=100&auto=format&fit=crop&q=80',
-    timezone: 'GMT-05:00',
-    language: 'English',
-    aiEnabled: true,
-    aiMode: 'Draft Only',
-    model: 'Claude',
-    prompt: `You are an AI representative of XYZ Digital Marketing Agency.
-Help customers understand our services (SEO, PPC, Social Media Management).
-Keep your tone highly professional and persuasive.`,
-    temperature: 0.5,
-    maxTokens: 300,
-    team: [
-      { id: 'u1', name: 'Mahmud', email: 'mahmud@autoreply.ai', role: 'owner', status: 'active' },
-    ],
-  },
-];
 
 export const DEFAULT_CONNECTIONS: Connection[] = [
   {

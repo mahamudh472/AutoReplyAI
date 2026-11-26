@@ -3,17 +3,23 @@ import { useApp } from '../../context/AppContext';
 import { Building2, Plus, Check, Trash2 } from 'lucide-react';
 
 export const AccountTab: React.FC = () => {
-  const { organizations, activeOrgId, selectOrg, createOrg } = useApp();
+  const { organizations, activeOrgId, selectOrg, createOrg, isOrgSaving, orgError } = useApp();
   const [newOrgName, setNewOrgName] = useState('');
   const [orgCreated, setOrgCreated] = useState(false);
+  const [createError, setCreateError] = useState('');
 
-  const handleCreateOrg = (e: React.FormEvent) => {
+  const handleCreateOrg = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newOrgName.trim()) return;
-    createOrg(newOrgName);
-    setNewOrgName('');
-    setOrgCreated(true);
-    setTimeout(() => setOrgCreated(false), 3000);
+    setCreateError('');
+    try {
+      await createOrg(newOrgName.trim());
+      setNewOrgName('');
+      setOrgCreated(true);
+      setTimeout(() => setOrgCreated(false), 3000);
+    } catch (error: any) {
+      setCreateError(error?.error || error?.message || 'Failed to create workspace.');
+    }
   };
 
   const currentOrg = organizations.find(o => o.id === activeOrgId) || organizations[0];
@@ -42,7 +48,7 @@ export const AccountTab: React.FC = () => {
                 >
                   {organizations.map(org => (
                     <option key={org.id} value={org.id}>
-                      {org.name} ({org.team?.length || 0} {(org.team?.length || 0) === 1 ? 'member' : 'members'})
+                      {org.name} ({org.members_count ?? 0} {(org.members_count ?? 0) === 1 ? 'member' : 'members'})
                     </option>
                   ))}
                 </select>
@@ -52,11 +58,17 @@ export const AccountTab: React.FC = () => {
             {currentOrg && (
               <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <img 
-                    src={currentOrg.logo} 
-                    alt={currentOrg.name} 
-                    className="h-10 w-10 rounded-xl object-cover border border-slate-200"
-                  />
+                  {currentOrg.logo ? (
+                    <img 
+                      src={currentOrg.logo} 
+                      alt={currentOrg.name} 
+                      className="h-10 w-10 rounded-xl object-cover border border-slate-200"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center font-bold">
+                      {currentOrg.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   <div>
                     <h4 className="text-xs font-bold text-slate-800">{currentOrg.name}</h4>
                     <p className="text-[10px] text-slate-400 mt-0.5">Timezone: {currentOrg.timezone} • Language: {currentOrg.language}</p>
@@ -77,6 +89,12 @@ export const AccountTab: React.FC = () => {
             <p className="text-xs text-slate-400 mt-0.5">Set up an isolated workspace to manage a different business page.</p>
           </div>
 
+          {(createError || orgError) && (
+            <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
+              {createError || orgError}
+            </p>
+          )}
+
           <div className="space-y-4">
             <div className="space-y-1.5">
               <label className="block text-[10px] uppercase font-bold text-slate-400">Workspace / Business Name</label>
@@ -94,7 +112,8 @@ export const AccountTab: React.FC = () => {
           <div className="flex justify-end pt-4 border-t border-slate-100">
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl transition-all shadow-md shadow-blue-500/10 text-xs flex items-center gap-1.5 cursor-pointer"
+              disabled={isOrgSaving}
+              className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-xl transition-all shadow-md shadow-blue-500/10 text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-60"
             >
               {orgCreated ? (
                 <>
@@ -126,11 +145,15 @@ export const AccountTab: React.FC = () => {
           <div className="space-y-3.5 text-xs text-slate-600">
             <div className="flex justify-between items-center py-2 border-b border-slate-100">
               <span className="text-slate-400 font-medium">Role</span>
-              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-200/50">Owner</span>
+              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded-lg border border-blue-200/50 capitalize">
+                {currentOrg?.role || 'member'}
+              </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-slate-100">
-              <span className="text-slate-400 font-medium">Member Since</span>
-              <span className="font-bold text-slate-700">June 12, 2026</span>
+              <span className="text-slate-400 font-medium">Organization Created</span>
+              <span className="font-bold text-slate-700">
+                {currentOrg?.created_at ? new Date(currentOrg.created_at).toLocaleDateString() : '—'}
+              </span>
             </div>
             <div className="flex justify-between items-center py-2">
               <span className="text-slate-400 font-medium">Linked Accounts</span>

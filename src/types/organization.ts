@@ -1,9 +1,32 @@
+export type OrganizationRole = 'owner' | 'admin' | 'member' | 'viewer';
+export type InvitableOrganizationRole = Exclude<OrganizationRole, 'owner'>;
+
 export interface TeamMember {
   id: string;
+  userId: string;
   name: string;
   email: string;
-  role: 'owner' | 'member';
+  role: OrganizationRole;
+  status: 'active';
+  lastActive: string | null;
+  createdAt: string;
+}
+
+export interface TeamInvitation {
+  id: string;
+  email: string;
+  role: InvitableOrganizationRole;
+  status: 'invited';
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface TeamInviteResult {
   status: 'active' | 'invited';
+  member: TeamMember | null;
+  invitation: TeamInvitation | null;
+  emailSent: boolean;
+  message: string;
 }
 
 export interface OrganizationSubscriptionFeatures {
@@ -17,7 +40,7 @@ export interface OrganizationSubscriptionFeatures {
 
 export interface OrganizationSubscription {
   plan_name: string;
-  status: 'active' | 'trial' | 'cancelled' | 'past_due';
+  status: 'active' | 'trialing' | 'cancelled' | 'canceled' | 'past_due';
   billing_cycle?: string;
   features: OrganizationSubscriptionFeatures;
   renews_at?: string;
@@ -33,7 +56,8 @@ export interface Organization {
   language: string;
   default_language?: string;
   description?: string;
-  role?: 'owner' | 'member';
+  role?: OrganizationRole;
+  members_count?: number;
   created_at?: string;
   updated_at?: string;
   aiEnabled?: boolean;
@@ -42,7 +66,6 @@ export interface Organization {
   prompt?: string;
   temperature?: number;
   maxTokens?: number;
-  team?: TeamMember[];
 }
 
 export interface OrganizationListItem {
@@ -50,7 +73,8 @@ export interface OrganizationListItem {
   name: string;
   slug: string;
   logo_url?: string | null;
-  role: 'owner' | 'member';
+  role: OrganizationRole;
+  members_count: number;
 }
 
 export interface CreateOrganizationPayload {

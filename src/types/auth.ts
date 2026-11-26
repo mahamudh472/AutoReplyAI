@@ -16,6 +16,7 @@ export interface ProfileResponse {
   date_of_birth: string | null;
   joined_at: string;
   last_login: string | null;
+  onboarding_completed: boolean;
   is_active: boolean;
   is_staff: boolean;
   groups: any[];

@@ -20,6 +20,7 @@ export const ProfileTab: React.FC = () => {
   const [compactMode, setCompactMode] = useState(false);
   const [collapsedSidebar, setCollapsedSidebar] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savingError, setSavingError] = useState('');
 
   // Sync state when user profile is fetched asynchronously
   useEffect(() => {
@@ -30,11 +31,16 @@ export const ProfileTab: React.FC = () => {
     }
   }, [user]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateUser({ name, email, phoneNumber: phone });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSavingError('');
+    try {
+      await updateUser({ name, email, phoneNumber: phone });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error: any) {
+      setSavingError(error?.email?.[0] || error?.error || error?.message || 'Failed to update profile.');
+    }
   };
 
   return (
@@ -158,7 +164,8 @@ export const ProfileTab: React.FC = () => {
           </div>
 
           {/* Save Button Row */}
-          <div className="flex justify-end pt-4 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            {savingError && <span className="text-[11px] text-rose-600">{savingError}</span>}
             <button
               type="submit"
               className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-6 rounded-xl transition-all shadow-md shadow-blue-500/10 text-xs flex items-center gap-2 active:scale-95 cursor-pointer"
